@@ -17,18 +17,20 @@ DECIMAL_VALUE = 3
 # ID, Name, Value/Temp
 QUERIES = [[3793, "Oil Meter", VALUE], [4176, "Load Setting", DECIMAL_VALUE], [12, "Outside Temperature", TEMP], [14, "Warm Water Temperature", TEMP], [3101, "Flow Temperature", TEMP], [325, "Flue Gas Temperature", TEMP], [5, "Room Temperature", TEMP], [274, "Operation Mode", VALUE], [8, "Mixed External Temperature", TEMP], [81, "Flame", VALUE], [1497, "Gas Valve 1", VALUE], [1498, "Gas Valve 2", VALUE], [466, "Pump", VALUE], [82, "Heating", VALUE], [83, "Warm Water", VALUE], [1, "Error", VALUE], [373, "Operation Phase", VALUE]]
 
+def _to_int16(lowByte, highByte):
+    raw = (lowByte & 0xFF) | ((highByte & 0xFF) << 8)   # 256 * highByte
+    if raw >= 0x8000:  # signed 16-bit
+        raw -= 0x10000
+    return raw
 
 def getTemperture(lowByte, highByte):
-    return (lowByte + 265 * highByte) / 10
-
+    return _to_int16(lowByte, highByte) / 10.0
 
 def getValue(lowByte, highByte):
-    return lowByte + 265 * highByte
-
+    return (lowByte & 0xFF) | ((highByte & 0xFF) << 8)
 
 def getDecimalValue(lowByte, highByte):
-    return (lowByte + 265 * highByte) / 10
-
+    return ((lowByte & 0xFF) | ((highByte & 0xFF) << 8)) / 10.0
 
 def process_values(server, username, password):
     try:
