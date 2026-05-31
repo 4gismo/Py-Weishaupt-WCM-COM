@@ -12,7 +12,7 @@ import requests
 from requests.auth import HTTPDigestAuth
 
 ENDPOINT = "/parameter.json"
-BATCH_SIZE = 25
+BATCH_SIZE = 15
 TIMEOUT = 10
 
 
