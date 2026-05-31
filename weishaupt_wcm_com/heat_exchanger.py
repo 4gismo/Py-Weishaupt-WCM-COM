@@ -5,22 +5,27 @@ from requests.auth import HTTPDigestAuth
 
 _LOGGER = logging.getLogger(__name__)
 
-
 ENDPOINT = "/parameter.json"
-QUERYTELEGRAM = (
+
+# Two separate requests — device processes max ~19 valid parameters per request
+QUERYTELEGRAM_1 = (
     '{"prot":"coco","telegramm":[[10,0,1,3793,0,0,0,0],[10,0,1,3792,0,0,0,0],[10,0,1,12,0,0,0,0],[10,0,1,14,0,0,0,0],[10,0,1,3101,0,0,0,0],[10,0,1,325,0,0,0,0],[6,0,1,5,0,0],[6,0,1,274,0,0],[6,0,1,8,0,0],[10,0,1,81,0,0,0,0],[10,0,1,1497,0,0,0,0],[10,0,1,1498,0,0,0,0],[10,0,1,466,0,0,0,0],[10,0,1,82,0,0,0,0],[10,0,1,83,0,0,0,0],[10,0,1,1,0,0,0,0],[10,0,1,373,0,0,0,0],[10,0,1,2,0,0,0,0]]}'
+)
+QUERYTELEGRAM_2 = (
+    '{"prot":"coco","telegramm":[[10,0,1,3102,0,0,0,0],[10,0,1,700,0,0,0,0],[10,0,1,3158,0,0,0,0],[10,0,1,3159,0,0,0,0]]}'
 )
 
 VALUE = 1
 TEMP = 2
 DECIMAL_VALUE = 3
 
-# ID, Name, Type
+# ID, Name, Type, Scale (optional — result is multiplied by scale)
 QUERIES = [
     [3793, "Oil Meter", VALUE],
     [12, "Outside Temperature", TEMP],
     [14, "Warm Water Temperature", TEMP],
     [3101, "Flow Temperature", TEMP],
+    [3102, "Return Temperature", TEMP],
     [325, "Flue Gas Temperature", TEMP],
     [5, "Room Temperature", TEMP],
     [274, "Operating Mode", VALUE],
@@ -34,11 +39,14 @@ QUERIES = [
     [1, "Error", VALUE],
     [373, "Operating Phase", VALUE],
     [2, "Heat Demand", TEMP],
+    [700, "Time Since Last Service", VALUE],
+    [3158, "Burner Starts", VALUE, 1000],
+    [3159, "Burner Hours", VALUE, 100],
 ]
 
 def _to_int16(lowByte, highByte):
     raw = (lowByte & 0xFF) | ((highByte & 0xFF) << 8)
-    if raw >= 0x8000:  # signed 16-bit
+    if raw >= 0x8000:
         raw -= 0x10000
     return raw
 
@@ -51,27 +59,30 @@ def getValue(lowByte, highByte):
 def getDecimalValue(lowByte, highByte):
     return ((lowByte & 0xFF) | ((highByte & 0xFF) << 8)) / 10.0
 
+def _process_telegram(telegram, result):
+    for message in telegram:
+        for reading in QUERIES:
+            if message[3] == reading[0]:
+                scale = reading[3] if len(reading) > 3 else 1
+                if reading[2] == TEMP:
+                    result[reading[1]] = getTemperture(message[6], message[7])
+                elif reading[2] == VALUE:
+                    result[reading[1]] = getValue(message[6], message[7]) * scale
+                elif reading[2] == DECIMAL_VALUE:
+                    result[reading[1]] = getDecimalValue(message[6], message[7]) * scale
+        if message[3] == 3792:
+            result["Oil Meter"] = result.get("Oil Meter", 0) + message[6] * 1000
+
 def process_values(server, username, password):
     try:
-        req = requests.post(
-            "http://" + server + ENDPOINT,
-            auth=HTTPDigestAuth(username, password),
-            data=QUERYTELEGRAM,
-            timeout=5)
-        telegram = json.loads(req.text)["telegramm"]
         result = {}
-        for message in telegram:
-            for reading in QUERIES:
-                if message[3] == reading[0]:
-                    if reading[2] == TEMP:
-                        result[reading[1]] = getTemperture(message[6], message[7])
-                    elif reading[2] == VALUE:
-                        result[reading[1]] = getValue(message[6], message[7])
-                    elif reading[2] == DECIMAL_VALUE:
-                        result[reading[1]] = getDecimalValue(message[6], message[7])
-            # special handling for oil meter high byte (ID 3792 adds 1000s to ID 3793 low value)
-            if message[3] == 3792:
-                result["Oil Meter"] = result.get("Oil Meter", 0) + message[6] * 1000
+        auth = HTTPDigestAuth(username, password)
+        url = "http://" + server + ENDPOINT
+
+        for telegram_str in [QUERYTELEGRAM_1, QUERYTELEGRAM_2]:
+            req = requests.post(url, auth=auth, data=telegram_str, timeout=5)
+            _process_telegram(json.loads(req.text)["telegramm"], result)
+
         return json.dumps(result)
     except requests.exceptions.ConnectionError as e:
         _LOGGER.error("WCM-COM connection failed (host unreachable?): %s", e)
@@ -83,7 +94,7 @@ def process_values(server, username, password):
         _LOGGER.error("WCM-COM HTTP error (wrong credentials?): %s", e)
         raise
     except requests.exceptions.RequestException as e:
-        _LOGGER.error("WCM-COM request error: %s", e)
+        _LOGGER.error("WCM-COM request failed: %s", e)
         raise
     except (KeyError, IndexError, json.JSONDecodeError) as e:
         _LOGGER.error("WCM-COM unexpected response format: %s", e)
