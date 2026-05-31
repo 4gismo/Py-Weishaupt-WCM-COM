@@ -69,6 +69,8 @@ def process_values(server, username, password):
             data=QUERYTELEGRAM,
             timeout=5)
         telegram = json.loads(req.text)["telegramm"]
+        for message in telegram:
+            _LOGGER.warning("RAW id=%s bytes=%s", message[3], message[4:])
         result = {}
         for message in telegram:
             for reading in QUERIES:
