@@ -1,7 +1,9 @@
 import requests
 import json
-import sys
+import logging
 from requests.auth import HTTPDigestAuth
+
+_LOGGER = logging.getLogger(__name__)
 
 
 ENDPOINT = "/parameter.json"
@@ -55,7 +57,22 @@ def process_values(server, username, password):
             if message[3] == 3792:
                 result["Oil Meter"] = result["Oil Meter"]+message[6]*1000
         return json.dumps(result)
-    except:
-        print("Unexpected error:", sys.exc_info()[0])
-        return None
+    except requests.exceptions.ConnectionError as e:
+        _LOGGER.error("WCM-COM connection failed (host unreachable?): %s", e)
+        raise
+    except requests.exceptions.Timeout as e:
+        _LOGGER.error("WCM-COM request timed out after 5s: %s", e)
+        raise
+    except requests.exceptions.HTTPError as e:
+        _LOGGER.error("WCM-COM HTTP error (wrong credentials?): %s", e)
+        raise
+    except requests.exceptions.RequestException as e:
+        _LOGGER.error("WCM-COM request error: %s", e)
+        raise
+    except (KeyError, IndexError, json.JSONDecodeError) as e:
+        _LOGGER.error("WCM-COM unexpected response format: %s", e)
+        raise
+    except Exception as e:
+        _LOGGER.error("WCM-COM unexpected error: %s", e)
+        raise
 
