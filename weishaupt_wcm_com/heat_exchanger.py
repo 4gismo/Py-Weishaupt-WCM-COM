@@ -73,6 +73,38 @@ def _process_telegram(telegram, result):
         if message[3] == 3792:
             result["Oil Meter"] = result.get("Oil Meter", 0) + message[6] * 1000
 
+def set_operating_mode(server, username, password, mode_value: int):
+    """Write Operating Mode HK (parameter 274) to the device.
+
+    Uses type-6 telegram matching the read format for ID 274 ([6,0,1,274,0,0]),
+    with command byte 2 (write) instead of 1 (read).
+    """
+    try:
+        auth = HTTPDigestAuth(username, password)
+        url = "http://" + server + ENDPOINT
+        telegram = json.dumps({
+            "prot": "coco",
+            "telegramm": [[6, 0, 2, 274, 0, 0, mode_value & 0xFF, (mode_value >> 8) & 0xFF]]
+        })
+        req = requests.post(url, auth=auth, data=telegram, timeout=5)
+        req.raise_for_status()
+    except requests.exceptions.ConnectionError as e:
+        _LOGGER.error("WCM-COM connection failed when setting operating mode: %s", e)
+        raise
+    except requests.exceptions.Timeout as e:
+        _LOGGER.error("WCM-COM request timed out when setting operating mode: %s", e)
+        raise
+    except requests.exceptions.HTTPError as e:
+        _LOGGER.error("WCM-COM HTTP error when setting operating mode: %s", e)
+        raise
+    except requests.exceptions.RequestException as e:
+        _LOGGER.error("WCM-COM request failed when setting operating mode: %s", e)
+        raise
+    except Exception as e:
+        _LOGGER.error("WCM-COM unexpected error when setting operating mode: %s", e)
+        raise
+
+
 def process_values(server, username, password):
     try:
         result = {}
