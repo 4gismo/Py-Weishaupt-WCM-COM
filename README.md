@@ -53,7 +53,7 @@ Parameters are queried in two batches (device processes max ~19 parameters per r
 | 1498 | Gas Valve 2 | VALUE | — | 0/1 |
 | 2560 | System Frost Protection | TEMP | °C | P23 |
 | 3101 | Flow Temperature | TEMP | °C | |
-| 3102 | Return Temperature | TEMP | °C | |
+| 3102 | Heating Special Level | VALUE | °C | P18 — no ÷10 conversion |
 | 3158 | Burner Starts | VALUE×1000 | — | |
 | 3159 | Burner Hours | VALUE×100 | h | |
 | 3793/3792 | Oil Meter | VALUE (combined) | L | Two-register value |
@@ -76,14 +76,13 @@ pip install git+https://github.com/4gismo/Py-Weishaupt-WCM-COM.git@master
 from weishaupt_wcm_com import heat_exchanger
 import json
 
-result = heat_exchanger.process_values("192.168.1.100", "user", "password")
-data = json.loads(result)
+data = heat_exchanger.process_values("192.168.1.100", "user", "password")
 print(data["Flow Temperature"])        # e.g. 65.3
 print(data["Outside Temperature"])     # e.g. 8.2
 print(data["Burner Load"])             # e.g. 0
 ```
 
-`process_values()` returns a JSON string on success, or raises an exception on connection / auth / format errors.
+`process_values()` returns a dict on success, or raises an exception on connection / auth / format errors.
 
 ### Set operating mode
 

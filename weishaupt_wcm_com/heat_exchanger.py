@@ -25,7 +25,7 @@ QUERIES = [
     [12, "Outside Temperature", TEMP],
     [14, "Warm Water Temperature", TEMP],
     [3101, "Flow Temperature", TEMP],
-    [3102, "Return Temperature", TEMP],
+    [3102, "Heating Special Level", VALUE],
     [325, "Flue Gas Temperature", TEMP],
     [5, "Room Temperature", TEMP],
     [274, "Operating Mode", VALUE],
@@ -58,7 +58,7 @@ def _to_int16(lowByte, highByte):
         raw -= 0x10000
     return raw
 
-def getTemperture(lowByte, highByte):
+def getTemperature(lowByte, highByte):
     return _to_int16(lowByte, highByte) / 10.0
 
 def getValue(lowByte, highByte):
@@ -73,7 +73,7 @@ def _process_telegram(telegram, result):
             if message[3] == reading[0]:
                 scale = reading[3] if len(reading) > 3 else 1
                 if reading[2] == TEMP:
-                    result[reading[1]] = getTemperture(message[6], message[7])
+                    result[reading[1]] = getTemperature(message[6], message[7])
                 elif reading[2] == VALUE:
                     result[reading[1]] = getValue(message[6], message[7]) * scale
                 elif reading[2] == DECIMAL_VALUE:
@@ -123,7 +123,7 @@ def process_values(server, username, password):
             req = requests.post(url, auth=auth, data=telegram_str, timeout=5)
             _process_telegram(json.loads(req.text)["telegramm"], result)
 
-        return json.dumps(result)
+        return result
     except requests.exceptions.ConnectionError as e:
         _LOGGER.error("WCM-COM connection failed (host unreachable?): %s", e)
         raise
