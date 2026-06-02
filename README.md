@@ -8,6 +8,14 @@ Used as the backend for the [HA-Weishaupt-WCM-COM](https://github.com/4gismo/HA-
 
 ---
 
+## Device Interface
+
+![WCM-COM process values](images/device_process_values.jpeg)
+
+![WCM-COM expert settings](images/device_expert_settings.jpeg)
+
+---
+
 ## Protocol
 
 Communicates with the WCM-COM module via **HTTP POST** with **HTTP Digest Authentication**. Requests and responses use a proprietary JSON telegram format (`"prot": "coco"`).
