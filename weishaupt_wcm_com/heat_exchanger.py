@@ -39,7 +39,7 @@ QUERIES = [
     [1, "Error", VALUE],
     [373, "Operating Phase", VALUE],
     [2, "Heat Demand", TEMP],
-    [700, "Time Since Last Service", VALUE],
+    [700, "Time Since Last Service", VALUE, 10],
     [3158, "Burner Starts", VALUE, 1000],
     [3159, "Burner Hours", VALUE, 100],
 ]
